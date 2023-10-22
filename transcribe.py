@@ -6,6 +6,8 @@ import evaluate
 import pathlib
 from typing import Optional
 from utils import path_join, sorah_ayah_format
+import time
+from mutagen.mp3 import MP3
 
 
 @dataclass
@@ -38,6 +40,15 @@ class TotalEntry:
         return f"{self.wer:.4f},{self.num_words_reference}"
 
 
+@dataclass
+class BenchmarkEntry:
+    duration: float
+    processing_time: float
+
+    def __str__(self) -> str:
+        return f"{self.duration:.2f},{self.processing_time:.2f}"
+
+
 def transcribe(
     audio_path: str,
     text_csv_path: str,
@@ -51,6 +62,8 @@ def transcribe(
 ):
     if not out_prefix:
         out_prefix = model_str
+
+    benchmark_data: list[BenchmarkEntry] = []
 
     reference_texts: dict[int, list[str]] = {}
     with open(text_csv_path, "r") as reference_csv_file:
@@ -80,12 +93,17 @@ def transcribe(
 
     for sorah_num in range(from_sorah, to_sorah + 1):  # inclusive
         for ayah_num, ayah_ref_text in enumerate(reference_texts[sorah_num], start=1):
-            result = model.transcribe(
-                path_join(
-                    audio_dir_path,
-                    sorah_ayah_format(sorah_num=sorah_num, ayah_num=ayah_num),
-                )
+            audio_file_path = path_join(
+                audio_dir_path,
+                sorah_ayah_format(sorah_num=sorah_num, ayah_num=ayah_num),
             )
+            duration = MP3(audio_file_path).info.length
+            time_start = time.perf_counter()
+            result = model.transcribe(audio_file_path)
+            time_end = time.perf_counter()
+            processing_time = time_end - time_start
+            benchmark_data.append(BenchmarkEntry(duration, processing_time))
+
             prediction_text = araby.strip_diacritics(result["text"])
             if log_level == "verbose":
                 print(prediction_text)
@@ -129,3 +147,11 @@ def transcribe(
     with open(path_join(output_dir_path, f"{out_prefix}_total.csv"), "w") as total_file:
         total_file.write("wer,num_words_reference\n")
         total_file.write(f"{total_entry}\n")
+
+    if do_benchmark:
+        with open(
+            path_join(output_dir_path, f"{out_prefix}_bench.csv"), "w"
+        ) as bench_file:
+            bench_file.write("duration_sec,processing_time_sec\n")
+            for entry in benchmark_data:
+                bench_file.write(f"{entry}\n")
