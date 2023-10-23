@@ -99,7 +99,7 @@ def transcribe(
             )
             duration = MP3(audio_file_path).info.length
             time_start = time.perf_counter()
-            result = model.transcribe(audio_file_path)
+            result = model.transcribe(audio_file_path, language="ar")
             time_end = time.perf_counter()
             processing_time = time_end - time_start
             benchmark_data.append(BenchmarkEntry(duration, processing_time))
