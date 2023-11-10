@@ -88,6 +88,18 @@ python3 main.py merge \
   "output/minshawy_total.csv"
 ```
 
+* Use a checkpoint:
+
+```bash
+python3 main.py generate \
+  --sorah-range 58:66 \
+  "/kaggle/input/last-three-juz-text/ayat_28-30.csv" \
+  "/kaggle/working/Minshawy/audio/Minshawy_Murattal_128kbps" \
+  --model /kaggle/working/checkpoint-epoch=0007.ckpt \
+  --log-level verbose \
+  --bench
+```
+
 ## Notes:
 
 * `TEXT_CSV_PATH` must be a path for a file that contains literal columns `sorah`, `ayah` and `text`

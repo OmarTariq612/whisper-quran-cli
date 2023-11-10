@@ -1,8 +1,8 @@
-import whisper
-from pyarabic import araby
+import whisper #type: ignore
+from pyarabic import araby #type: ignore
 from dataclasses import dataclass
 import csv
-import evaluate
+import evaluate #type: ignore
 import pathlib
 from typing import Optional
 from utils import path_join, sorah_ayah_format
@@ -97,7 +97,7 @@ def transcribe(
                 audio_dir_path,
                 sorah_ayah_format(sorah_num=sorah_num, ayah_num=ayah_num),
             )
-            duration = MP3(audio_file_path).info.length
+            duration = MP3(audio_file_path).info.length  # type: ignore
             time_start = time.perf_counter()
             result = model.transcribe(audio_file_path, language="ar")
             time_end = time.perf_counter()
@@ -112,7 +112,7 @@ def transcribe(
                 PerAyahEntry(sorah_num, ayah_num, wer, len(ayah_ref_text.split()))
             )
 
-        total_num = 0
+        total_num = 0.0
         total_denum = 0
         for i in range(per_ayah_index, len(per_ayah)):
             total_num += per_ayah[i].wer * per_ayah[i].num_words_reference
@@ -133,12 +133,12 @@ def transcribe(
         path_join(output_dir_path, f"{out_prefix}_per_sorah.csv"), "w"
     ) as per_sorah_file:
         per_sorah_file.write("sorah,wer,num_words_reference\n")
-        for entry in per_sorah:
+        for entry in per_sorah:  # type: ignore
             per_sorah_file.write(f"{entry}\n")
 
     total_num = 0
     total_denum = 0
-    for entry in per_sorah:
+    for entry in per_sorah:  # type: ignore
         total_num += entry.wer * entry.num_words_reference
         total_denum += entry.num_words_reference
 
@@ -153,5 +153,5 @@ def transcribe(
             path_join(output_dir_path, f"{out_prefix}_bench.csv"), "w"
         ) as bench_file:
             bench_file.write("duration_sec,processing_time_sec\n")
-            for entry in benchmark_data:
+            for entry in benchmark_data:  # type: ignore
                 bench_file.write(f"{entry}\n")

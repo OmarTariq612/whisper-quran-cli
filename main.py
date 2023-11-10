@@ -1,6 +1,5 @@
 import click
-from clicktypes import SORAH_RANGE
-from transcribe import transcribe
+from clicktypes import SORAH_RANGE, WHSIPER_MODEL_CHOICE
 from merge import merge as m
 
 
@@ -19,7 +18,7 @@ def main():
 @click.option(
     "--model",
     default="medium",
-    type=click.Choice(("tiny", "base", "small", "medium", "large")),
+    type=WHSIPER_MODEL_CHOICE,
     help="multilingual model used for transcribing (default: medium)",
 )
 @click.option("--sorah-range", default="1:114", type=SORAH_RANGE)
@@ -45,7 +44,7 @@ def main():
     default=False,
     is_flag=True,
     type=click.BOOL,
-    help="export benchmark info to a file"
+    help="export benchmark info to a file",
 )
 def generate(
     text_csv_path: str,
@@ -55,8 +54,10 @@ def generate(
     out_prefix: str,
     log_level: str,
     o: str,
-    bench: bool
+    bench: bool,
 ):
+    from transcribe import transcribe
+
     transcribe(
         audio_path=audio_path,
         text_csv_path=text_csv_path,
