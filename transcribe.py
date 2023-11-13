@@ -6,41 +6,54 @@ import csv
 import evaluate
 import pathlib
 from typing import Optional
-from utils import path_join, sorah_ayah_format
+from utils import path_join, sorah_ayah_format, merge_wer_info
 import time
 from mutagen.mp3 import MP3
 from audiomentations.core.transforms_interface import BaseWaveformTransform
+from jiwer import process_words
+
+
+@dataclass
+class WERInfo:
+    insertions: int
+    deletions: int
+    hits: int
+    substitutions: int
+    wer: float
+
+    def __str__(self) -> str:
+        return f"{self.insertions},{self.deletions},{self.hits},{self.substitutions},{self.wer:.4f}"
 
 
 @dataclass
 class PerSorahEntry:
     sorah: int
-    wer: float
-    num_words_reference: int
+    wer_info: WERInfo
 
     def __str__(self) -> str:
-        return f"{self.sorah},{self.wer:.4f},{self.num_words_reference}"
+        return f"{self.sorah},{self.wer_info}"
 
 
 @dataclass
 class PerAyahEntry:
     sorah: int
     ayah: int
-    wer: float
-    num_words_reference: int
     pred_text: str
+    ref_text: str
+    wer_info: WERInfo
 
     def __str__(self) -> str:
-        return f"{self.sorah},{self.ayah},{self.wer:.4f},{self.num_words_reference},{self.pred_text}"
+        return (
+            f"{self.sorah},{self.ayah},{self.pred_text},{self.ref_text},{self.wer_info}"
+        )
 
 
 @dataclass
 class TotalEntry:
-    wer: float
-    num_words_reference: int
+    wer_info: WERInfo
 
     def __str__(self) -> str:
-        return f"{self.wer:.4f},{self.num_words_reference}"
+        return f"{self.wer_info}"
 
 
 @dataclass
@@ -111,47 +124,64 @@ def transcribe(
             processing_time = time_end - time_start
             benchmark_data.append(BenchmarkEntry(duration, processing_time))
 
-            prediction_text = araby.strip_diacritics(result["text"])
+            prediction_text: str = araby.strip_diacritics(result["text"])  # type: ignore
             if log_level == "verbose":
                 print(prediction_text)
+
             wer: float = wer_module.compute(predictions=[prediction_text], references=[ayah_ref_text])  # type: ignore
-            per_ayah.append(
-                PerAyahEntry(sorah_num, ayah_num, wer, len(ayah_ref_text.split()), prediction_text)  # type: ignore
+            word_output = process_words(
+                hypothesis=prediction_text, reference=ayah_ref_text
             )
 
-        total_num = 0.0
-        total_denum = 0
-        for i in range(per_ayah_index, len(per_ayah)):
-            total_num += per_ayah[i].wer * per_ayah[i].num_words_reference
-            total_denum += per_ayah[i].num_words_reference
+            per_ayah.append(
+                PerAyahEntry(
+                    sorah=sorah_num,
+                    ayah=ayah_num,
+                    pred_text=prediction_text,
+                    ref_text=ayah_ref_text,
+                    wer_info=WERInfo(
+                        insertions=word_output.insertions,
+                        deletions=word_output.deletions,
+                        hits=word_output.hits,
+                        substitutions=word_output.substitutions,
+                        wer=wer,
+                    ),
+                )
+            )
 
-        per_sorah.append(PerSorahEntry(sorah_num, total_num / total_denum, total_denum))
+        per_sorah.append(
+            PerSorahEntry(
+                sorah=sorah_num,
+                wer_info=merge_wer_info(
+                    map(lambda entry: entry.wer_info, per_ayah[per_ayah_index:])
+                ),
+            )
+        )
+
         per_ayah_index = len(per_ayah)
 
     with open(
         path_join(output_dir_path, f"{out_prefix}_per_ayah.csv"), "w", encoding="utf-8"
     ) as per_ayah_file:
-        per_ayah_file.write("sorah,ayah,wer,num_words_reference,pred_text\n")
+        per_ayah_file.write(
+            "sorah,ayah,pred_text,ref_text,insertions,deletions,hits,substitutions,wer\n"
+        )
         for entry in per_ayah:
             per_ayah_file.write(f"{entry}\n")
 
     with open(
         path_join(output_dir_path, f"{out_prefix}_per_sorah.csv"), "w"
     ) as per_sorah_file:
-        per_sorah_file.write("sorah,wer,num_words_reference\n")
+        per_sorah_file.write("sorah,insertions,deletions,hits,substitutions,wer\n")
         for entry in per_sorah:  # type: ignore
             per_sorah_file.write(f"{entry}\n")
 
-    total_num = 0
-    total_denum = 0
-    for entry in per_sorah:  # type: ignore
-        total_num += entry.wer * entry.num_words_reference
-        total_denum += entry.num_words_reference
-
-    total_entry = TotalEntry(total_num / total_denum, total_denum)
+    total_entry = TotalEntry(
+        wer_info=merge_wer_info(map(lambda entry: entry.wer_info, per_sorah))
+    )
 
     with open(path_join(output_dir_path, f"{out_prefix}_total.csv"), "w") as total_file:
-        total_file.write("wer,num_words_reference\n")
+        total_file.write("insertions,deletions,hits,substitutions,wer\n")
         total_file.write(f"{total_entry}\n")
 
     if do_benchmark:
