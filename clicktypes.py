@@ -53,11 +53,9 @@ class WhisperModelChoice(click.ParamType):
             return value
 
         return click.Path(exists=True, dir_okay=False).convert(value, param, ctx)
-    
+
     def get_metavar(self, param: click.Parameter) -> str:
         return "[name|checkpoint_path]"
-
-
 
 
 WHSIPER_MODEL_CHOICE = WhisperModelChoice()

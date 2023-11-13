@@ -1,13 +1,15 @@
-import whisper  # type: ignore
-from pyarabic import araby  # type: ignore
+import whisper
+from whisper.audio import SAMPLE_RATE
+from pyarabic import araby
 from dataclasses import dataclass
 import csv
-import evaluate  # type: ignore
+import evaluate
 import pathlib
 from typing import Optional
 from utils import path_join, sorah_ayah_format
 import time
 from mutagen.mp3 import MP3
+from audiomentations.core.transforms_interface import BaseWaveformTransform
 
 
 @dataclass
@@ -54,6 +56,7 @@ def transcribe(
     audio_path: str,
     text_csv_path: str,
     model_str: str = "medium",
+    transform: Optional[BaseWaveformTransform] = None,
     from_sorah: int = 1,
     to_sorah: int = 114,
     output_dir: str = ".",
@@ -100,7 +103,10 @@ def transcribe(
             )
             duration = MP3(audio_file_path).info.length  # type: ignore
             time_start = time.perf_counter()
-            result = model.transcribe(audio_file_path, language="ar")
+            audio_wave = whisper.load_audio(audio_file_path)
+            if transform:
+                audio_wave = transform(audio_wave, sample_rate=SAMPLE_RATE)
+            result = model.transcribe(audio_wave, language="ar")
             time_end = time.perf_counter()
             processing_time = time_end - time_start
             benchmark_data.append(BenchmarkEntry(duration, processing_time))

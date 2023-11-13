@@ -1,6 +1,8 @@
 import click
 from clicktypes import SORAH_RANGE, WHSIPER_MODEL_CHOICE
 from merge import merge as m
+from audiomentations import TimeStretch
+from typing import Optional
 
 
 @click.group()
@@ -20,6 +22,12 @@ def main():
     default="medium",
     type=WHSIPER_MODEL_CHOICE,
     help="multilingual model used for transcribing (default: medium)",
+)
+@click.option(
+    "--time-stretch",
+    default=None,
+    type=(float, float, float),
+    help="min_rate max_rate probability",
 )
 @click.option("--sorah-range", default="1:114", type=SORAH_RANGE)
 @click.option(
@@ -50,6 +58,7 @@ def generate(
     text_csv_path: str,
     audio_path: str,
     model: str,
+    time_stretch: tuple[float, float, float],
     sorah_range: tuple[int, int],
     out_prefix: str,
     log_level: str,
@@ -58,10 +67,20 @@ def generate(
 ):
     from transcribe import transcribe
 
+    time_stretch_obj: Optional[TimeStretch] = None
+    if time_stretch:
+        time_stretch_obj = TimeStretch(
+            min_rate=time_stretch[0],
+            max_rate=time_stretch[1],
+            leave_length_unchanged=False,
+            p=time_stretch[2],
+        )
+
     transcribe(
         audio_path=audio_path,
         text_csv_path=text_csv_path,
         model_str=model,
+        transform=time_stretch_obj,
         from_sorah=sorah_range[0],
         to_sorah=sorah_range[1],
         output_dir=o,

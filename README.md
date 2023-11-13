@@ -11,7 +11,8 @@ pip3 install click \
   jiwer \
   evaluate \
   openai-whisper \
-  pyarabic
+  pyarabic \
+  audiomentations
 ```
 
 ```bash
