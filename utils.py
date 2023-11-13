@@ -1,6 +1,6 @@
 import pathlib
 from typing import Iterable
-from transcribe import WERInfo
+from entrytypes import WERInfo
 
 
 def sorah_ayah_format(sorah_num: int, ayah_num: int, ext: str = "mp3") -> str:
