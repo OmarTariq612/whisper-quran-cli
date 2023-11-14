@@ -1,17 +1,20 @@
 import whisper
 from whisper.audio import SAMPLE_RATE
 from pyarabic import araby
-from dataclasses import dataclass
+import torch
 import csv
 import evaluate
 import pathlib
-from typing import Optional
+from typing import Optional, Final
 from utils import path_join, sorah_ayah_format, merge_wer_info
 import time
 from mutagen.mp3 import MP3
 from audiomentations.core.transforms_interface import BaseWaveformTransform
 from jiwer import process_words
 from entrytypes import WERInfo, PerAyahEntry, PerSorahEntry, TotalEntry, BenchmarkEntry
+
+
+DEVICE: Final[str] = "cuda" if torch.cuda.is_available() else "cpu"
 
 
 def transcribe(
@@ -25,6 +28,7 @@ def transcribe(
     out_prefix: Optional[str] = None,
     log_level: str = "normal",
     do_benchmark: bool = False,
+    device: str = DEVICE,
 ):
     if not out_prefix:
         out_prefix = model_str
@@ -51,7 +55,9 @@ def transcribe(
         ).is_file():
             raise ValueError(f"the given audio path doesn't have sorah({sorah_num})")
 
-    model = whisper.load_model(model_str)
+    print(f"loading the model to {device}")
+
+    model = whisper.load_model(model_str, device=device)
     wer_module = evaluate.load("wer")
     per_sorah: list[PerSorahEntry] = []
     per_ayah: list[PerAyahEntry] = []
