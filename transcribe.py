@@ -27,7 +27,6 @@ def transcribe(
     output_dir: str = ".",
     out_prefix: Optional[str] = None,
     log_level: str = "normal",
-    do_benchmark: bool = False,
     device: str = DEVICE,
 ):
     if not out_prefix:
@@ -77,7 +76,7 @@ def transcribe(
             result = model.transcribe(audio_wave, language="ar")
             time_end = time.perf_counter()
             processing_time = time_end - time_start
-            benchmark_data.append(BenchmarkEntry(duration, processing_time))
+            # benchmark_data.append(BenchmarkEntry(duration, processing_time))
 
             prediction_text: str = araby.strip_diacritics(result["text"])  # type: ignore
             if log_level == "verbose":
@@ -92,6 +91,9 @@ def transcribe(
                 PerAyahEntry(
                     sorah=sorah_num,
                     ayah=ayah_num,
+                    bench_data=BenchmarkEntry(
+                        duration=duration, processing_time=processing_time
+                    ),
                     pred_text=prediction_text,
                     ref_text=ayah_ref_text,
                     wer_info=WERInfo(
@@ -119,7 +121,7 @@ def transcribe(
         path_join(output_dir_path, f"{out_prefix}_per_ayah.csv"), "w", encoding="utf-8"
     ) as per_ayah_file:
         per_ayah_file.write(
-            "sorah,ayah,pred_text,ref_text,insertions,deletions,hits,substitutions,wer\n"
+            "sorah,ayah,duration,processing_time,pred_text,ref_text,insertions,deletions,hits,substitutions,wer\n"
         )
         for entry in per_ayah:
             per_ayah_file.write(f"{entry}\n")
@@ -138,11 +140,3 @@ def transcribe(
     with open(path_join(output_dir_path, f"{out_prefix}_total.csv"), "w") as total_file:
         total_file.write("insertions,deletions,hits,substitutions,wer\n")
         total_file.write(f"{total_entry}\n")
-
-    if do_benchmark:
-        with open(
-            path_join(output_dir_path, f"{out_prefix}_bench.csv"), "w"
-        ) as bench_file:
-            bench_file.write("duration_sec,processing_time_sec\n")
-            for entry in benchmark_data:  # type: ignore
-                bench_file.write(f"{entry}\n")

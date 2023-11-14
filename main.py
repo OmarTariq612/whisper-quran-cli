@@ -46,14 +46,6 @@ def main():
     help="output directory",
 )
 @click.option(
-    "--bench",
-    "-b",
-    default=False,
-    is_flag=True,
-    type=click.BOOL,
-    help="export benchmark info to a file",
-)
-@click.option(
     "--device",
     "-d",
     default="cuda",
@@ -69,7 +61,6 @@ def generate(
     out_prefix: str,
     log_level: str,
     o: str,
-    bench: bool,
     device: str
 ):
     from transcribe import transcribe
@@ -93,7 +84,6 @@ def generate(
         output_dir=o,
         out_prefix=out_prefix,
         log_level=log_level,
-        do_benchmark=bench,
         device=device,
     )
 

@@ -14,6 +14,15 @@ class WERInfo:
 
 
 @dataclass
+class BenchmarkEntry:
+    duration: float
+    processing_time: float
+
+    def __str__(self) -> str:
+        return f"{self.duration:.2f},{self.processing_time:.2f}"
+
+
+@dataclass
 class PerSorahEntry:
     sorah: int
     wer_info: WERInfo
@@ -26,13 +35,14 @@ class PerSorahEntry:
 class PerAyahEntry:
     sorah: int
     ayah: int
+    bench_data: BenchmarkEntry
     pred_text: str
     ref_text: str
     wer_info: WERInfo
 
     def __str__(self) -> str:
         return (
-            f"{self.sorah},{self.ayah},{self.pred_text},{self.ref_text},{self.wer_info}"
+            f"{self.sorah},{self.ayah},{self.pred_text},{self.ref_text},{self.bench_data},{self.wer_info}"
         )
 
 
@@ -42,12 +52,3 @@ class TotalEntry:
 
     def __str__(self) -> str:
         return f"{self.wer_info}"
-
-
-@dataclass
-class BenchmarkEntry:
-    duration: float
-    processing_time: float
-
-    def __str__(self) -> str:
-        return f"{self.duration:.2f},{self.processing_time:.2f}"
