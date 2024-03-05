@@ -1,4 +1,7 @@
-from dataclasses import dataclass
+from pydantic.dataclasses import dataclass
+from pydantic import computed_field
+from typing import Iterable
+from sys import stderr
 
 
 @dataclass
@@ -9,46 +12,92 @@ class WERInfo:
     substitutions: int
     wer: float
 
-    def __str__(self) -> str:
-        return f"{self.insertions},{self.deletions},{self.hits},{self.substitutions},{self.wer:.4f}"
+
+def merge_wer_info(entries: Iterable[WERInfo]) -> WERInfo:
+    insertions = 0
+    deletions = 0
+    hits = 0
+    substitutions = 0
+
+    for entry in entries:
+        insertions += entry.insertions
+        deletions += entry.deletions
+        hits += entry.hits
+        substitutions += entry.substitutions
+
+    wer = (insertions + deletions + substitutions) / (deletions + substitutions + hits)
+
+    return WERInfo(
+        insertions=insertions,
+        deletions=deletions,
+        hits=hits,
+        substitutions=substitutions,
+        wer=wer,
+    )
 
 
 @dataclass
-class BenchmarkEntry:
+class Benchmark:
     duration: float
     processing_time: float
 
-    def __str__(self) -> str:
-        return f"{self.duration:.2f},{self.processing_time:.2f}"
-
 
 @dataclass
-class PerSorahEntry:
-    sorah: int
-    wer_info: WERInfo
-
-    def __str__(self) -> str:
-        return f"{self.sorah},{self.wer_info}"
-
-
-@dataclass
-class PerAyahEntry:
-    sorah: int
-    ayah: int
-    bench_data: BenchmarkEntry
+class OutputPartEntry:
+    number: int
     pred_text: str
     ref_text: str
     wer_info: WERInfo
+    bench_data: Benchmark
 
-    def __str__(self) -> str:
-        return (
-            f"{self.sorah},{self.ayah},{self.pred_text},{self.ref_text},{self.bench_data},{self.wer_info}"
-        )
+
+@dataclass
+class OutputAyahEntry:
+    ayah_num: int
+    parts: list[OutputPartEntry]
+
+    @computed_field
+    def pred_text(self) -> str:
+        return " ".join(map(lambda part: part.pred_text, self.parts))
+
+    @computed_field
+    def ref_text(self) -> str:
+        return " ".join(map(lambda part: part.ref_text, self.parts))
+
+    @computed_field
+    def wer_info(self) -> WERInfo:
+        try:
+            wer_info = merge_wer_info(map(lambda part: part.wer_info, self.parts))
+            return wer_info
+        except Exception as e:
+            print(e, file=stderr)
+        return WERInfo(insertions=0, deletions=0, hits=0, substitutions=0, wer=1)
+
+
+@dataclass
+class OutputSorahEntry:
+    sorah_num: int
+    ayahs: list[OutputAyahEntry]
+
+    @computed_field
+    def wer_info(self) -> WERInfo:
+        try:
+            wer_info = merge_wer_info(map(lambda ayah: ayah.wer_info, self.ayahs))  # type: ignore
+            return wer_info
+        except Exception as e:
+            print(e, file=stderr)
+        return WERInfo(insertions=0, deletions=0, hits=0, substitutions=0, wer=1)
 
 
 @dataclass
 class TotalEntry:
-    wer_info: WERInfo
+    sorahs: list[OutputSorahEntry]
 
-    def __str__(self) -> str:
-        return f"{self.wer_info}"
+    @computed_field
+    def wer_info(self) -> WERInfo:
+        try:
+            wer_info = merge_wer_info(map(lambda sorah: sorah.wer_info, self.sorahs))  # type: ignore
+            return wer_info
+        except Exception as e:
+            print(e, file=stderr)
+        return WERInfo(insertions=0, deletions=0, hits=0, substitutions=0, wer=1)
