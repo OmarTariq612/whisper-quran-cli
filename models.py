@@ -12,6 +12,7 @@ class Waqf(str, Enum):
     MUAANAQAH = "muaanaqah"
     SAKTA = "sakta"
     FORBIDDEN = "forbidden"
+    RAS_AYAH = "ras-ayah"
 
 
 class Segment(BaseModel):
@@ -30,6 +31,8 @@ class Part(BaseModel):
     from_ms: float
     to_ms: float
     number: int
+    starting_ayah_number: int
+    ending_ayah_number: int
     cutting_blindly: bool
     segments: list[Segment]
 
@@ -41,25 +44,19 @@ class Part(BaseModel):
         return f"{round((ms - self.from_ms) / 1000 / 0.02) * 0.02:.2f}"
 
     @computed_field
-    def text_with_timestamps(self) -> str:
-        texts = []
-        for segment in self.segments:
-            begining = self._to_whisper_timestamps(segment.start_ms)
-            end = self._to_whisper_timestamps(segment.end_ms)
-            texts.append(f"<|{begining}|>{segment.word}<|{end}|>")
-        return " ".join(texts)
+    def text(self) -> str:
+        texts = [segment.word for segment in self.segments]
+        beginning = self._to_whisper_timestamps(self.segments[0].start_ms)
+        end = self._to_whisper_timestamps(self.segments[-1].end_ms)
+        return f'<|{beginning}|>{" ".join(texts)}<|{end}|>'
 
     @computed_field
     def clear_text(self) -> str:
         return " ".join(map(lambda segment: segment.word, self.segments))
 
 
-class Ayah(RootModel):
-    root: list[Part]
-
-
 class Sorah(RootModel):
-    root: dict[str, Ayah]
+    root: list[Part]
 
 
 class SheikhInfo(RootModel):

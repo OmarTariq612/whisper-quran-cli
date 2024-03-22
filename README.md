@@ -56,4 +56,4 @@ python3 main.py \
 
 * `METADATA_PATH` must be a path for a json file that contains follows the schema in `models.py`
 
-* `AUDIO_PATH` is a directory that must contain sorahs in this format `sssaaappp.mp3` where `s` refers to the sorah number, `a` refers to the ayah number and `p` refers to the part number. (ex: `001001001.mp3`)
+* `AUDIO_PATH` is a directory that must contain sorahs in this format `sss-pppppp.mp3` where `s` refers to the sorah number and `p` refers to the part number. (ex: `001-000001.mp3`)

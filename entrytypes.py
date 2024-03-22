@@ -52,37 +52,14 @@ class OutputPartEntry:
 
 
 @dataclass
-class OutputAyahEntry:
-    ayah_num: int
+class OutputSorahEntry:
+    sorah_num: int
     parts: list[OutputPartEntry]
 
     @computed_field
-    def pred_text(self) -> str:
-        return " ".join(map(lambda part: part.pred_text, self.parts))
-
-    @computed_field
-    def ref_text(self) -> str:
-        return " ".join(map(lambda part: part.ref_text, self.parts))
-
-    @computed_field
     def wer_info(self) -> WERInfo:
         try:
-            wer_info = merge_wer_info(map(lambda part: part.wer_info, self.parts))
-            return wer_info
-        except Exception as e:
-            print(e, file=stderr)
-        return WERInfo(insertions=0, deletions=0, hits=0, substitutions=0, wer=1)
-
-
-@dataclass
-class OutputSorahEntry:
-    sorah_num: int
-    ayahs: list[OutputAyahEntry]
-
-    @computed_field
-    def wer_info(self) -> WERInfo:
-        try:
-            wer_info = merge_wer_info(map(lambda ayah: ayah.wer_info, self.ayahs))  # type: ignore
+            wer_info = merge_wer_info(map(lambda part: part.wer_info, self.parts))  # type: ignore
             return wer_info
         except Exception as e:
             print(e, file=stderr)
