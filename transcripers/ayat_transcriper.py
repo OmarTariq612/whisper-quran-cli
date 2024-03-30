@@ -4,9 +4,9 @@ import time
 from pydantic import RootModel
 from pathlib import Path
 from jiwer import process_words  # type: ignore
-from .output_types import *  # type: ignore
-from .utils import path_join, DEVICE  # type: ignore
-from .base_transcriper import BaseTranscriper  # type: ignore
+from .output_types import *
+from .utils import path_join, DEVICE
+from .base_transcriper import BaseTranscriper
 from mutagen.mp3 import MP3
 import csv
 
@@ -30,7 +30,7 @@ def load_metadata(path: Path) -> list[Sorah]:
 
 
 def sorah_ayah_format(sorah_num: int, ayah_num: int, ext: str = "mp3") -> str:
-    return f"{sorah_num:03}-{ayah_num:03}.{ext}"
+    return f"{sorah_num:03}{ayah_num:03}.{ext}"
 
 
 class AyatTranscriper(BaseTranscriper):
@@ -44,21 +44,23 @@ class AyatTranscriper(BaseTranscriper):
         from_sorah: int = 1,
         to_sorah: int = 114,
         device: str = DEVICE,
-    ) -> tuple[TotalEntry, list[OutputSorahErrorsEntry]]:  # type: ignore
+    ) -> tuple[TotalEntry, list[OutputSorahErrorsEntry]]:
 
         sorahs_ref_text = load_metadata(self.metadata_path)
-        total_entry = TotalEntry(sorahs=[])  # type: ignore
-        sorahs_errors: list[OutputSorahErrorsEntry] = []  # type: ignore
+        total_entry = TotalEntry(sorahs=[])
+        sorahs_errors: list[OutputSorahErrorsEntry] = []
 
         if not isinstance(model, Whisper):
             print(f"loading the model to {device}")
             model = load_model(model, device=device)
 
         for sorah_num in range(from_sorah, to_sorah + 1):
-            sorah_entry = OutputSorahEntry(sorah_num=sorah_num, parts=[])  # type: ignore
-            curr_sorah_errors = list[OutputPartErrorEntry] = []  # type: ignore
+            sorah_entry = OutputSorahEntry(sorah_num=sorah_num, parts=[])
+            curr_sorah_errors: OutputSorahErrorsEntry = OutputSorahErrorsEntry(
+                sorah_num=sorah_num, parts=[]
+            )
 
-            for ayah_num, ayah in enumerate(
+            for ayah_num, ayah_ref_text in enumerate(
                 sorahs_ref_text[sorah_num - 1].root, start=1
             ):
                 audio_file_path = path_join(
@@ -70,7 +72,9 @@ class AyatTranscriper(BaseTranscriper):
                 try:
                     audio_wave = load_audio(audio_file_path)
                 except Exception as e:
-                    curr_sorah_errors.append(OutputPartErrorEntry(number=part.number, error_msg=str(e)))  # type: ignore
+                    curr_sorah_errors.parts.append(
+                        OutputPartErrorEntry(number=ayah_num, error_msg=str(e))
+                    )
                     continue
 
                 time_start = time.perf_counter()
@@ -80,28 +84,28 @@ class AyatTranscriper(BaseTranscriper):
 
                 prediction_text = result["text"]
                 word_output = process_words(
-                    hypothesis=prediction_text, reference=ayah.text  # type: ignore
+                    hypothesis=prediction_text, reference=ayah_ref_text
                 )
 
-                part_entry = OutputPartEntry(  # type: ignore
+                part_entry = OutputPartEntry(
                     number=ayah_num,
                     pred_text=prediction_text,  # type: ignore
-                    ref_text=ayah.text,  # type: ignore
-                    wer_info=WERInfo(  # type: ignore
+                    ref_text=ayah_ref_text,
+                    wer_info=WERInfo(
                         insertions=word_output.insertions,
                         deletions=word_output.deletions,
                         hits=word_output.hits,
                         substitutions=word_output.substitutions,
                         wer=word_output.wer,
                     ),
-                    bench_data=Benchmark(  # type: ignore
-                        duration_s=duration, processing_time_ms=processing_time
+                    bench_data=Benchmark(
+                        duration_s=duration, processing_time_s=processing_time
                     ),
                 )
 
                 sorah_entry.parts.append(part_entry)
 
-            sorahs_errors.append(curr_sorah_errors)  # type: ignore
+            sorahs_errors.append(curr_sorah_errors)
             total_entry.sorahs.append(sorah_entry)
 
         return total_entry, sorahs_errors

@@ -39,7 +39,7 @@ def merge_wer_info(entries: Iterable[WERInfo]) -> WERInfo:
 @dataclass
 class Benchmark:
     duration_s: float
-    processing_time_ms: float
+    processing_time_s: float
 
 
 @dataclass

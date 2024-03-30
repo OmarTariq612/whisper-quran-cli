@@ -37,6 +37,11 @@ class BaseTranscriper(ABC):
             model=model, from_sorah=from_sorah, to_sorah=to_sorah, device=device
         )
 
+        output_sorahs_errors_obj = [
+            RootModel[OutputSorahErrorsEntry](sorahs_errors).model_dump()
+            for sorahs_errors in output_sorahs_errors
+        ]
+
         if output_filename is None:
             output_filename = self.audio_path.name
 
@@ -59,7 +64,7 @@ class BaseTranscriper(ABC):
             encoding="utf-8",
         ) as file:
             dump(
-                output_sorahs_errors.model_dump(),  # type: ignore
+                output_sorahs_errors_obj,
                 file,
                 ensure_ascii=False,
             )

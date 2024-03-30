@@ -6,9 +6,9 @@ from enum import Enum
 import json
 from pathlib import Path
 from jiwer import process_words  # type: ignore
-from .output_types import *  # type: ignore
-from .utils import path_join, DEVICE  # type: ignore
-from .base_transcriper import BaseTranscriper  # type: ignore
+from .output_types import *
+from .utils import path_join, DEVICE
+from .base_transcriper import BaseTranscriper
 
 
 class Waqf(str, Enum):
@@ -93,10 +93,10 @@ class QuranComTranscriper(BaseTranscriper):
         from_sorah: int = 1,
         to_sorah: int = 114,
         device: str = DEVICE,
-    ) -> tuple[TotalEntry, list[OutputSorahErrorsEntry]]:  # type: ignore
+    ) -> tuple[TotalEntry, list[OutputSorahErrorsEntry]]:
         sheikh_info = load_sheikh_info(self.metadata_path)
-        total_entry = TotalEntry(sorahs=[])  # type: ignore
-        sorahs_errors: list[OutputSorahErrorsEntry] = []  # type: ignore
+        total_entry = TotalEntry(sorahs=[])
+        sorahs_errors: list[OutputSorahErrorsEntry] = []
 
         if not isinstance(model, Whisper):
             print(f"loading the model to {device}")
@@ -104,8 +104,10 @@ class QuranComTranscriper(BaseTranscriper):
 
         for sorah_num in range(from_sorah, to_sorah + 1):
             sorah_num_str = str(sorah_num)
-            sorah_entry = OutputSorahEntry(sorah_num=sorah_num, parts=[])  # type: ignore
-            curr_sorah_errors = list[OutputPartErrorEntry] = []  # type: ignore
+            sorah_entry = OutputSorahEntry(sorah_num=sorah_num, parts=[])
+            curr_sorah_errors: OutputSorahErrorsEntry = OutputSorahErrorsEntry(
+                sorah_num=sorah_num, parts=[]
+            )
 
             for part in sheikh_info.root[sorah_num_str].root:
                 audio_file_path = path_join(
@@ -116,7 +118,9 @@ class QuranComTranscriper(BaseTranscriper):
                 try:
                     audio_wave = load_audio(audio_file_path)
                 except Exception as e:
-                    curr_sorah_errors.append(OutputPartErrorEntry(number=part.number, error_msg=str(e)))  # type: ignore
+                    curr_sorah_errors.parts.append(
+                        OutputPartErrorEntry(number=part.number, error_msg=str(e))
+                    )
                     continue
 
                 time_start = time.perf_counter()
@@ -129,25 +133,25 @@ class QuranComTranscriper(BaseTranscriper):
                     hypothesis=prediction_text, reference=part.clear_text  # type: ignore
                 )
 
-                part_entry = OutputPartEntry(  # type: ignore
+                part_entry = OutputPartEntry(
                     number=part.number,
                     pred_text=prediction_text,  # type: ignore
                     ref_text=part.clear_text,  # type: ignore
-                    wer_info=WERInfo(  # type: ignore
+                    wer_info=WERInfo(
                         insertions=word_output.insertions,
                         deletions=word_output.deletions,
                         hits=word_output.hits,
                         substitutions=word_output.substitutions,
                         wer=word_output.wer,
                     ),
-                    bench_data=Benchmark(  # type: ignore
-                        duration_s=duration, processing_time_ms=processing_time
+                    bench_data=Benchmark(
+                        duration_s=duration, processing_time_s=processing_time
                     ),
                 )
 
                 sorah_entry.parts.append(part_entry)
 
-            sorahs_errors.append(curr_sorah_errors)  # type: ignore
+            sorahs_errors.append(curr_sorah_errors)
             total_entry.sorahs.append(sorah_entry)
 
         return total_entry, sorahs_errors
