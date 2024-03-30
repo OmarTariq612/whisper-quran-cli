@@ -3,7 +3,10 @@ from clicktypes import SORAH_RANGE, WHSIPER_MODEL_CHOICE
 
 
 @click.command(help="transcribe sorahs in the given range + the WER")
-@click.argument("transcriber", type=click.Choice([], case_sensitive=False))
+@click.argument(
+    "transcriber",
+    type=click.Choice(["QuranComTranscriper", "AyatTranscriper"], case_sensitive=False),
+)
 @click.argument(
     "metadata-path", type=click.Path(file_okay=True, dir_okay=False, exists=True)
 )

@@ -1,29 +1,32 @@
 from whisper.model import Whisper  # type: ignore
 from whisper import load_model, load_audio  # type: ignore
 import time
-from pydantic import BaseModel, RootModel
+from pydantic import RootModel
 from pathlib import Path
 from jiwer import process_words  # type: ignore
 from .output_types import *  # type: ignore
 from .utils import path_join, DEVICE  # type: ignore
 from .base_transcriper import BaseTranscriper  # type: ignore
 from mutagen.mp3 import MP3
-
-
-class Ayah(BaseModel):
-    text: str
+import csv
 
 
 class Sorah(RootModel):
-    root: list[Ayah]
+    root: list[str]
 
 
-class Metadata(RootModel):
-    root: dict[int, Sorah]
+def load_metadata(path: Path) -> list[Sorah]:
+    reference_texts: dict[int, list[str]] = {}
+    with open(path, "r") as reference_csv_file:
+        reader = csv.DictReader(reference_csv_file)
+        for line in reader:
+            reference_texts.setdefault(int(line["sorah"]), list()).append(line["text"])
 
+    result: list[Sorah] = [
+        Sorah(reference_texts[sorah_num]) for sorah_num in range(1, 115)
+    ]
 
-def load_metadata(path: Path) -> Metadata:
-    return None  # type: ignore
+    return result
 
 
 def sorah_ayah_format(sorah_num: int, ayah_num: int, ext: str = "mp3") -> str:
@@ -43,7 +46,7 @@ class AyatTranscriper(BaseTranscriper):
         device: str = DEVICE,
     ) -> tuple[TotalEntry, list[OutputSorahErrorsEntry]]:  # type: ignore
 
-        metadata = load_metadata(self.metadata_path)
+        sorahs_ref_text = load_metadata(self.metadata_path)
         total_entry = TotalEntry(sorahs=[])  # type: ignore
         sorahs_errors: list[OutputSorahErrorsEntry] = []  # type: ignore
 
@@ -55,7 +58,9 @@ class AyatTranscriper(BaseTranscriper):
             sorah_entry = OutputSorahEntry(sorah_num=sorah_num, parts=[])  # type: ignore
             curr_sorah_errors = list[OutputPartErrorEntry] = []  # type: ignore
 
-            for ayah_num, ayah in enumerate(metadata.root[sorah_num].root, start=1):
+            for ayah_num, ayah in enumerate(
+                sorahs_ref_text[sorah_num - 1].root, start=1
+            ):
                 audio_file_path = path_join(
                     self.audio_path,
                     sorah_ayah_format(sorah_num=sorah_num, ayah_num=ayah_num),
