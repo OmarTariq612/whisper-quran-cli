@@ -38,8 +38,8 @@ def merge_wer_info(entries: Iterable[WERInfo]) -> WERInfo:
 
 @dataclass
 class Benchmark:
-    duration: float
-    processing_time: float
+    duration_s: float
+    processing_time_ms: float
 
 
 @dataclass
@@ -78,3 +78,15 @@ class TotalEntry:
         except Exception as e:
             print(e, file=stderr)
         return WERInfo(insertions=0, deletions=0, hits=0, substitutions=0, wer=1)
+
+
+@dataclass
+class OutputPartErrorEntry:
+    number: int
+    error_msg: str
+
+
+@dataclass
+class OutputSorahErrorsEntry:
+    sorah_num: int
+    parts: list[OutputPartErrorEntry]

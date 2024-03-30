@@ -2,7 +2,8 @@ import click
 from clicktypes import SORAH_RANGE, WHSIPER_MODEL_CHOICE
 
 
-@click.command(help="generate csv files containing WER for the given input and model")
+@click.command(help="transcribe sorahs in the given range + the WER")
+@click.argument("transcriber", type=click.Choice([], case_sensitive=False))
 @click.argument(
     "metadata-path", type=click.Path(file_okay=True, dir_okay=False, exists=True)
 )
@@ -17,8 +18,11 @@ from clicktypes import SORAH_RANGE, WHSIPER_MODEL_CHOICE
 )
 @click.option("--sorah-range", default="1:114", type=SORAH_RANGE)
 @click.option(
-    "--out-prefix",
-    type=click.STRING,
+    "--device",
+    "-d",
+    default="cuda",
+    type=str,
+    help="device used to load the model",
 )
 @click.option(
     "-o",
@@ -27,32 +31,30 @@ from clicktypes import SORAH_RANGE, WHSIPER_MODEL_CHOICE
     help="output directory",
 )
 @click.option(
-    "--device",
-    "-d",
-    default="cuda",
-    type=str,
-    help="device used to load the model",
+    "--output-filename",
+    type=click.STRING,
 )
 def generate(
+    transcriber: str,
     audio_path: str,
     metadata_path: str,
     model: str,
     sorah_range: tuple[int, int],
-    out_prefix: str,
-    o: str,
     device: str,
+    o: str,
+    output_filename: str,
 ):
-    from transcribe import transcribe
+    from transcripers import mapping
 
-    transcribe(
-        audio_path=audio_path,
-        metadata_path=metadata_path,
-        model_str=model,
+    cls = mapping[transcriber]
+    obj = cls(metadata_path=metadata_path, audio_path=audio_path)
+    obj(
+        model=model,
         from_sorah=sorah_range[0],
         to_sorah=sorah_range[1],
-        output_dir=o,
-        out_prefix=out_prefix,
         device=device,
+        output_dir=o,
+        output_filename=output_filename,
     )
 
 
