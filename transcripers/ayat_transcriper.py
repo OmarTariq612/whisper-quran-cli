@@ -105,7 +105,9 @@ class AyatTranscriper(BaseTranscriper):
 
                 sorah_entry.parts.append(part_entry)
 
-            sorahs_errors.append(curr_sorah_errors)
             total_entry.sorahs.append(sorah_entry)
+
+            if len(curr_sorah_errors.parts) > 0:
+                sorahs_errors.append(curr_sorah_errors)
 
         return total_entry, sorahs_errors
