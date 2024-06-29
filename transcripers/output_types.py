@@ -1,5 +1,5 @@
-from pydantic.dataclasses import dataclass
-from pydantic import computed_field
+from pydantic.dataclasses import dataclass  # type: ignore
+from pydantic import computed_field  # type: ignore
 from typing import Iterable
 from sys import stderr
 

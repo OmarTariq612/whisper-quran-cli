@@ -1,14 +1,12 @@
-from whisper.model import Whisper  # type: ignore
-from whisper import load_model, load_audio  # type: ignore
-import time
 from pydantic import BaseModel, RootModel, computed_field
 from enum import Enum
 import json
 from pathlib import Path
 from jiwer import process_words  # type: ignore
 from .output_types import *
-from .utils import path_join, DEVICE
+from .utils import path_join, DEVICE, count_with_diacritics, Counter
 from .base_transcriper import BaseTranscriper
+from .transcribe import Model
 
 
 class Waqf(str, Enum):
@@ -89,7 +87,9 @@ class QuranComTranscriper(BaseTranscriper):
     def transcribe(
         self,
         *,
-        model: str | Whisper,
+        model_id: str,
+        model_constructor: Model,
+        normalize_text: bool = True,
         from_sorah: int = 1,
         to_sorah: int = 114,
         device: str = DEVICE,
@@ -98,9 +98,14 @@ class QuranComTranscriper(BaseTranscriper):
         total_entry = TotalEntry(sorahs=[])
         sorahs_errors: list[OutputSorahErrorsEntry] = []
 
-        if not isinstance(model, Whisper):
-            print(f"loading the model to {device}")
-            model = load_model(model, device=device)
+        total_counter = Counter()
+        with_diacritics_counter = Counter()
+
+        model = model_constructor.construct_model(
+            model_id,
+            device=device,
+            fn=count_with_diacritics(total_counter, with_diacritics_counter),
+        )
 
         for sorah_num in range(from_sorah, to_sorah + 1):
             sorah_num_str = str(sorah_num)
@@ -115,20 +120,17 @@ class QuranComTranscriper(BaseTranscriper):
                 )
 
                 duration = part.duration / 1000  # type: ignore
+
                 try:
-                    audio_wave = load_audio(audio_file_path)
+                    prediction_text, processing_time = model(
+                        audio_file_path, normalize_text=normalize_text
+                    )
                 except Exception as e:
                     curr_sorah_errors.parts.append(
                         OutputPartErrorEntry(number=part.number, error_msg=str(e))
                     )
                     continue
 
-                time_start = time.perf_counter()
-                result = model.transcribe(audio_wave, language="ar")
-                time_end = time.perf_counter()
-                processing_time = time_end - time_start
-
-                prediction_text = result["text"]
                 word_output = process_words(
                     hypothesis=prediction_text, reference=part.clear_text  # type: ignore
                 )
@@ -155,5 +157,11 @@ class QuranComTranscriper(BaseTranscriper):
 
             if len(curr_sorah_errors.parts) > 0:
                 sorahs_errors.append(curr_sorah_errors)
+
+        print(f"Total count: {total_counter.current_value()}")
+        print(f"With diacritics count: {with_diacritics_counter.current_value()}")
+        print(
+            f"Percentage of with diacritics to total count: {with_diacritics_counter.current_value() / total_counter.current_value() * 100}%"
+        )
 
         return total_entry, sorahs_errors
