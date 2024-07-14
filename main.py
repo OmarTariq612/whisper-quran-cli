@@ -1,17 +1,14 @@
 import click
 from clicktypes import SORAH_RANGE, WHSIPER_MODEL_CHOICE
-from merge import merge as m
-from audiomentations import TimeStretch
-from typing import Optional
-
-@click.group()
-def main():
-    pass
 
 
-@main.command(help="generate csv files containing WER for the given input and model")
+@click.command(help="transcribe sorahs in the given range + the WER")
 @click.argument(
-    "text-csv-path", type=click.Path(dir_okay=False, exists=True, readable=True)
+    "transcriber",
+    type=click.Choice(["QuranComTranscriper", "AyatTranscriper"], case_sensitive=False),
+)
+@click.argument(
+    "metadata-path", type=click.Path(file_okay=True, dir_okay=False, exists=True)
 )
 @click.argument(
     "audio-path", type=click.Path(file_okay=False, exists=True, executable=True)
@@ -23,21 +20,26 @@ def main():
     help="multilingual model used for transcribing (default: medium)",
 )
 @click.option(
-    "--time-stretch",
-    default=None,
-    type=(float, float, float),
-    help="min_rate max_rate probability",
+    "--model-constructor",
+    default="OpenAIWhisperModel",
+    type=click.Choice(
+        ["OpenAIWhisperModel", "TransformersWhisperModel"], case_sensitive=False
+    ),
+    help="model variant to use (openai-whisper or transformers)",
+)
+@click.option(
+    "--normalize-text",
+    default=True,
+    type=bool,
+    help="whether to normalize the output text of the model before calculating WER or not",
 )
 @click.option("--sorah-range", default="1:114", type=SORAH_RANGE)
 @click.option(
-    "--out-prefix",
-    type=click.STRING,
-)
-@click.option(
-    "--log-level",
-    default="normal",
-    type=click.Choice(("normal", "verbose")),
-    help="determine the logging level (default: normal)",
+    "--device",
+    "-d",
+    default="cuda",
+    type=str,
+    help="device used to load the model",
 )
 @click.option(
     "-o",
@@ -46,62 +48,38 @@ def main():
     help="output directory",
 )
 @click.option(
-    "--device",
-    "-d",
-    default="cuda",
-    type=str,
-    help="device used to load the model",
+    "--output-filename",
+    type=click.STRING,
 )
 def generate(
-    text_csv_path: str,
+    transcriber: str,
     audio_path: str,
+    metadata_path: str,
     model: str,
-    time_stretch: tuple[float, float, float],
+    model_constructor: str,
+    normalize_text: bool,
     sorah_range: tuple[int, int],
-    out_prefix: str,
-    log_level: str,
+    device: str,
     o: str,
-    device: str
+    output_filename: str,
 ):
-    from transcribe import transcribe
+    from transcripers import mapping, constructor_mapping
 
-    time_stretch_obj: Optional[TimeStretch] = None
-    if time_stretch:
-        time_stretch_obj = TimeStretch(
-            min_rate=time_stretch[0],
-            max_rate=time_stretch[1],
-            leave_length_unchanged=False,
-            p=time_stretch[2],
-        )
+    cls = mapping[transcriber]
+    model_constructor_obj = constructor_mapping[model_constructor]()
 
-    transcribe(
-        audio_path=audio_path,
-        text_csv_path=text_csv_path,
-        model_str=model,
-        transform=time_stretch_obj,
+    obj = cls(metadata_path=metadata_path, audio_path=audio_path)
+    obj(
+        model_id=model,
+        model_constructor=model_constructor_obj,
+        normalize_text=normalize_text,
         from_sorah=sorah_range[0],
         to_sorah=sorah_range[1],
-        output_dir=o,
-        out_prefix=out_prefix,
-        log_level=log_level,
         device=device,
+        output_dir=o,
+        output_filename=output_filename,
     )
 
 
-@main.command(help="merge multiple csv files into one containing WER as a total")
-@click.argument(
-    "src",
-    type=click.Path(exists=True, dir_okay=False, readable=True),
-    nargs=-1,
-    required=True,
-)
-@click.option("--out-prefix", default="merged", type=click.STRING)
-@click.option(
-    "-o", default=".", type=click.Path(exists=True, file_okay=False, executable=True)
-)
-def merge(src: tuple[str, ...], out_prefix: str, o: str):
-    m(srcs=src, out_prefix=out_prefix, output_dir=o)
-
-
 if __name__ == "__main__":
-    main()
+    generate()

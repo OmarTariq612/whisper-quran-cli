@@ -1,5 +1,6 @@
 import click
 from typing import Final
+import requests  # type: ignore
 
 
 class SorahRange(click.ParamType):
@@ -49,7 +50,10 @@ class WhisperModelChoice(click.ParamType):
     }
 
     def convert(self, value: str, param, ctx):
-        if value in WhisperModelChoice.Models:
+        if (
+            value in WhisperModelChoice.Models
+            or requests.get(f"https://huggingface.co/{value}").status_code == 200
+        ):
             return value
 
         return click.Path(exists=True, dir_okay=False).convert(value, param, ctx)

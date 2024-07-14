@@ -5,14 +5,15 @@
 ```bash
 sudo apt install ffmpeg -y
 ```
+
 ```bash
 pip3 install click \
-  mutagen \
   jiwer \
-  evaluate \
   openai-whisper \
-  pyarabic \
-  audiomentations
+  pydantic \
+  mutagen \
+  transformers \
+  requests
 ```
 
 ```bash
@@ -20,88 +21,68 @@ python3 main.py --help
 ```
 
 ```
-Usage: main.py [OPTIONS] COMMAND [ARGS]...
+Usage: main.py [OPTIONS] {QuranComTranscriper|AyatTranscriper} METADATA_PATH
+               AUDIO_PATH
+
+  transcribe sorahs in the given range + the WER
 
 Options:
-  --help  Show this message and exit.
-
-Commands:
-  generate  generate csv files containing WER for the given input and model
-  merge     merge multiple csv files into one containing WER as a total
-```
-
-```bash
-python3 main.py generate --help
-```
-
-```
-Usage: main.py generate [OPTIONS] TEXT_CSV_PATH AUDIO_PATH
-
-  generate csv files containing WER for the given input and model
-
-Options:
-  --model [tiny|base|small|medium|large]
-                                  multilingual model used for transcribing
+  --model [name|checkpoint_path]  multilingual model used for transcribing
                                   (default: medium)
+  --model-constructor [OpenAIWhisperModel|TransformersWhisperModel]
+                                  model variant to use (openai-whisper or
+                                  transformers)
+  --normalize-text BOOLEAN        whether to normalize the output text of the
+                                  model before calculating WER or not
   --sorah-range FROM-TO INCLUSIVE (EX: 1:114)
-  --out-prefix TEXT
-  --log-level [normal|verbose]    determine the logging level (default:
-                                  normal)
+  -d, --device TEXT               device used to load the model
   -o DIRECTORY                    output directory
-  -b, --bench                     export benchmark info to a file
+  --output-filename TEXT
   --help                          Show this message and exit.
-```
-
-```bash
-python3 main.py merge --help
-```
-
-```
-Usage: main.py merge [OPTIONS] SRC...
-
-  merge multiple csv files into one containing WER as a total
-
-Options:
-  --out-prefix TEXT
-  -o DIRECTORY
-  --help             Show this message and exit.
 ```
 
 ## Examples
 
-* Calculate WER and generate csv files + include benchmarking data for juz 28 (58:66)
+- Calculate WER + include benchmarking data for juz 28 (58:66) using `QuranComTranscriper` (model: default vanilla medium)
 
 ```bash
-python3 main.py generate \
+python3 main.py \
   --sorah-range 58:66 \
-  "/kaggle/input/last-three-juz-text/ayat_28-30.csv" \
-  "/kaggle/working/Minshawy/audio/Minshawy_Murattal_128kbps" \
-  --log-level verbose \
-  --bench
+  "QuranComTranscriper" \
+  "metadata.json" \
+  "Minshawy_Murattal_128kbps"
 ```
 
-* Merge multiple WER csv files into one.
+- Calculate WER + include benchmarking data for juz 28 (58:66) using `AyatTranscriper` (model: default vanilla medium)
 
 ```bash
-python3 main.py merge \
-  "output/husary_total.csv" \
-  "output/hudhaify_total.csv" \
-  "output/minshawy_total.csv"
-```
-
-* Use a checkpoint:
-
-```bash
-python3 main.py generate \
+python3 main.py \
   --sorah-range 58:66 \
-  "/kaggle/input/last-three-juz-text/ayat_28-30.csv" \
-  "/kaggle/working/Minshawy/audio/Minshawy_Murattal_128kbps" \
-  --model /kaggle/working/checkpoint-epoch=0007.ckpt \
-  --log-level verbose \
-  --bench
+  "AyatTranscriper" \
+  "ayat_28-30.csv" \
+  "Minshawy_Murattal_128kbps"
 ```
 
-## Notes:
+- Use an opena-ai whisper checkpoint:
 
-* `TEXT_CSV_PATH` must be a path for a file that contains literal columns `sorah`, `ayah` and `text`
-* `AUDIO_PATH` is a directory that must contain sorahs in this format `sssaaa.mp3` where `s` refers to the sorah number and `a` refers to the ayah number. (ex: `001001.mp3`)
+```bash
+python3 main.py \
+  --sorah-range 58:66 \
+  --model "/kaggle/working/checkpoint-epoch=0007.ckpt" \
+  --model-constructor "OpenAIWhisperModel" \
+  "QuranComTranscriper" \
+  "metadata.json" \
+  "Minshawy_Murattal_128kbps"
+```
+
+- Use a whisepr transformers checkpoint:
+
+```bash
+python3 main.py \
+  --sorah-range 58:66 \
+  --model "/kaggle/working/checkpoint-epoch=0007.ckpt" \
+  --model-constructor "TransformersWhisperModel" \
+  "QuranComTranscriper" \
+  "metadata.json" \
+  "Minshawy_Murattal_128kbps"
+```
